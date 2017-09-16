@@ -100,10 +100,10 @@ Calculator.prototype.parseFactor = function () {
     return new TreeNode('Factor', '(' + expression + ')');
   } else if (nextToken && nextToken.name === 'SUB') {
     this.get();
-    return new TreeNode('Factor', '-', this.parseFactor);
+    return new TreeNode('Factor', '-', this.parseFactor());
   } else if (nextToken && nextToken.name === 'NUMBER') {
     this.get();
-    return new TreeNode(nextToken); //???
+    return new TreeNode('NUMBER', nextToken); //???
   }
 };
 
@@ -116,20 +116,107 @@ TreeNode.prototype.accept = function(visitor) {
   return visitor.visit(this);
 };
 
-function PrintOriginalVisitor() {
+function InfixVisitor() {
+  this.visit = function(node) {
+    if (node.name === "Expression") {
+      return node.children[0].accept(this) + node.children[1].accept(this);
+    }
+    else if (node.name === "A") {
+      if(node.children.length > 0) {
+        return  node.children[0] + node.children[1].accept(this) + node.children[2].accept(this);
+      } else {
+        return "";
+      }
+    }
+    else if (node.name === "Term") {
+
+    }
+    else if (node.name === "Factor") {
+
+    }
+    else if (node.name === "B") {
+
+    }
+  }
+}
+
+function PostfixVisitor() {
+  this.visit = function(node) {
+    if (node.name === "Expression") {
+      return node.children[0].accept(this) + node.children[1].accept(this);
+    }
+    else if (node.name === "Term") {
+      return node.children[0].accept(this) + node.children[1].accept(this);
+    }
+    else if (node.name === "A") {
+      if(node.children.length > 0) {
+        return node.children[1].accept(this) + node.children[2].accept(this) + node.children[0];
+      } else {
+        return "";
+      }
+    }
+    else if (node.name === "Factor") {
+      if(node.children[0] === "(" ){
+        return node.children[1].accept(this);
+      } else if(node.children[0] ==="-") {
+        return "-" + node.children[1].accept(this);
+      } else{
+        return node.children[0];
+      }
+    }
+    else if (node.name === "B") {
+      if(node.children.length > 0) {
+        return node.children[1].accept(this) + node.children[2].accept(this) + node.children[0];
+      } else {
+        return "";
+      }
+    }
+  }
+}
+
+function InfixVisitorCalc() {
   this.visit = function(node) {
     switch(node.name) {
       case "Expression":
+        // return node.children[0].accept(this) + node.children[1].accept(this);
+        var t = node.children[0].accept(this);
+        var a = node.children[1].accept(this);
+        console.log("t, a", t, a);
+        return t+a;
         break;
       case "Term":
-        break;
-      case "Factor":
+        var f = node.children[0].accept(this);
+        var b = node.children[1].accept(this);
+        console.log("f, b", f, b);
+        return f+b;
         break;
       case "A":
-        break;
+        if(node.children.length > 0) {
+          var val = node.children[1].accept(this) + node.children[2].accept(this);
+          if(node.children[0] == "+") {
+            return val;
+          } else {
+            return 0 - val;
+          }
+
+        } else {
+          return 1;
+        }
+      case "Factor": // needs to be done
       case "B":
+        if(node.children.length > 0) {
+          var val = node.children[1].accept(this) * node.children[2].accept(this);
+          if(node.children[0] == "*") {
+            return val;
+          } else {
+            return 1/val;
+          }
+
+        } else {
+          return 1;
+        }
         break;
-      case "NUMBER":
+      default:
         break;
     }
   }
