@@ -1,9 +1,10 @@
-function Calculator() {
-  this.tokenStream = [];
+function Calculator(inputString) {
+  this.tokenStream = this.lexer(inputString);
+
 }
 
 Calculator.prototype.lexer = function (inputString) {
-  let tokenTypes = [
+  var tokenTypes = [
     ["NUMBER", /^\d+/],
     ["ADD", /^\+/],
     ["SUB", /^\-/],
@@ -13,216 +14,286 @@ Calculator.prototype.lexer = function (inputString) {
     ["RPAREN", /^\)/]
   ];
 
-  let matched = true;
+  var tokens = [];
+  var matched = true;
 
   while (inputString.length > 0 && matched) {
     matched = false;
-
     tokenTypes.forEach(tokenRegex => {
-      let token = tokenRegex[0],
-        regex = tokenRegex[1];
+      var token = tokenRegex[0];
+      var regex = tokenRegex[1];
 
-      let result = regex.exec(inputString);
+      var result = regex.exec(inputString);
 
-      if (result.length) {
+      if (result !== null) {
         matched = true;
-        this.tokenStream.push({
+        tokens.push({
           name: token,
           value: result[0]
         });
         inputString = inputString.slice(result[0].length);
       }
-    });
+    })
 
     if (!matched) {
-      throw new Error('Found unparsable token: ' + inputString);
+      throw new Error("Found unparseable token: " + inputString);
     }
+
   }
-};
+
+  return tokens;
+
+}
 
 Calculator.prototype.peek = function () {
-  return this.tokenStream[0] || null;
-};
+  return this.tokenStream[0];
+}
 
 Calculator.prototype.get = function () {
   return this.tokenStream.shift();
-};
+}
 
-Calculator.prototype.parseExpression = function () {
-  let term = this.parseTerm();
-  let a = this.parseA();
-
-  return new TreeNode('Expression', term, a);
-};
-
-Calculator.prototype.parseA = function () {
-  let nextToken = this.peek();
-
-  if (nextToken && nextToken.name === 'ADD') {
-    this.get();
-    return new TreeNode('A', '+', this.parseTerm(), this.parseA());
-  } else if (nextToken && nextToken.name === 'SUB') {
-    this.get();
-    return new TreeNode('A', '-', this.parseTerm(), this.parseA());
-  } else {
-    return new TreeNode('A');
-  }
-};
-
-Calculator.prototype.parseB = function () {
-  let nextToken = this.peek();
-
-  if (nextToken && nextToken.name === 'MUL') {
-    this.get();
-    return new TreeNode('B', '*', this.parseFactor(), this.parseB());
-  } else if (nextToken && nextToken.name === 'DIV') {
-    this.get();
-    return new TreeNode('B', '/', this.parseFactor(), this.parseB());
-  } else {
-    return new TreeNode('B');
-  }
-};
-
-Calculator.prototype.parseTerm = function () {
-  let factor = this.parseFactor();
-  let b = this.parseB();
-
-  return new TreeNode('Term', factor, b);
-};
-
-Calculator.prototype.parseFactor = function () {
-  let nextToken = this.peek();
-
-  if (nextToken && nextToken.name === 'LPAREN') {
-    this.get();
-    let expression = this.parseExpression();
-    this.get();
-    return new TreeNode('Factor', '(' + expression + ')');
-  } else if (nextToken && nextToken.name === 'SUB') {
-    this.get();
-    return new TreeNode('Factor', '-', this.parseFactor());
-  } else if (nextToken && nextToken.name === 'NUMBER') {
-    this.get();
-    return new TreeNode('NUMBER', nextToken); //???
-  }
-};
 
 function TreeNode(name, ...children) {
   this.name = name;
   this.children = children;
 }
 
-TreeNode.prototype.accept = function(visitor) {
-  return visitor.visit(this);
-};
+// Expression => Term A
+Calculator.prototype.parseExpression = function () {
+  var term = this.parseTerm();
+  var a = this.parseA();
 
-function InfixVisitor() {
-  this.visit = function(node) {
-    if (node.name === "Expression") {
-      return node.children[0].accept(this) + node.children[1].accept(this);
-    }
-    else if (node.name === "A") {
-      if(node.children.length > 0) {
-        return  node.children[0] + node.children[1].accept(this) + node.children[2].accept(this);
-      } else {
-        return "";
-      }
-    }
-    else if (node.name === "Term") {
+  return new TreeNode("Expression", term, a);
+}
 
-    }
-    else if (node.name === "Factor") {
+// Expression => Term A
+Calculator.prototype.parseTerm = function () {
+  var factor = this.parseFactor();
+  var b = this.parseB();
 
-    }
-    else if (node.name === "B") {
+  return new TreeNode("Term", factor, b);
+}
 
-    }
+/*
+    A => + Term A
+    A => - Term A
+    A => epsilon
+*/
+Calculator.prototype.parseA = function () {
+  var nextToken = this.peek();
+
+  if (nextToken && nextToken.name === "ADD") {
+    this.get(); // pulls plus sign off token stream
+    return new TreeNode("A", "+", this.parseTerm(), this.parseA()); // 1+2+3+4+5
+  } else if (nextToken && nextToken.name == "SUB") {
+    this.get();
+    return new TreeNode("A", "-", this.parseTerm(), this.parseA());
+  } else {
+    return new TreeNode("A")
   }
 }
 
-function PostfixVisitor() {
-  this.visit = function(node) {
-    if (node.name === "Expression") {
-      return node.children[0].accept(this) + node.children[1].accept(this);
-    }
-    else if (node.name === "Term") {
-      return node.children[0].accept(this) + node.children[1].accept(this);
-    }
-    else if (node.name === "A") {
-      if(node.children.length > 0) {
-        return node.children[1].accept(this) + node.children[2].accept(this) + node.children[0];
+// B => * F B
+// B => / F B
+// B => epsilon
+Calculator.prototype.parseB = function () {
+  var nextToken = this.peek();
+
+  if (nextToken && nextToken.name === "MUL") {
+    this.get(); // pulls plus sign off token stream
+    return new TreeNode("B", "*", this.parseFactor(), this.parseB()); // 1+2+3+4+5
+  } else if (nextToken && nextToken.name == "DIV") {
+    this.get();
+    return new TreeNode("B", "/", this.parseFactor(), this.parseB());
+  } else {
+    return new TreeNode("B")
+  }
+}
+
+// Factor
+/* Factor => Number
+      ( Expression )
+          - Factor
+*/
+
+Calculator.prototype.parseFactor = function () {
+  var nextToken = this.peek();
+
+  if (nextToken.name === "NUMBER") {
+    return new TreeNode("Factor", this.get().value);
+  } else if (nextToken.name === "LPAREN") {
+    // tokenStream => [ "(", EXPRESSION...., ")"]
+    this.get();
+    var expr = this.parseExpression();
+    this.get();
+    return new TreeNode("Factor", "(", expr, ")");
+  } else if (nextToken.name === "SUB") {
+    return new TreeNode("Factor", "-", this.parseFactor());
+  } else {
+    throw new Error("Expected to find a factor.");
+  }
+}
+
+
+TreeNode.prototype.accept = function (visitor) {
+  return visitor.visit(this);
+}
+
+
+function PrintOriginalVisitor() {}
+
+PrintOriginalVisitor.prototype.visit = function (node) {
+  switch (node.name) {
+    case "Expression":
+      var term = node.children[0].accept(this);
+      var a = node.children[1].accept(this);
+      return term + a;
+      break;
+    case "Term":
+      var factor = node.children[0].accept(this);
+      var b = node.children[1].accept(this);
+      return factor + b;
+      break;
+    case "A":
+      // +/-, or nothing which means this is epsilon A
+      if (node.children.length > 0) {
+        return node.children[0] + node.children[1].accept(this) + node.children[2].accept(this);
+        // +                     3                  ""
       } else {
+        // epsilon
         return "";
       }
-    }
-    else if (node.name === "Factor") {
-      if(node.children[0] === "(" ){
-        return node.children[1].accept(this);
-      } else if(node.children[0] ==="-") {
+      break;
+    case "B":
+      if (node.children.length > 0) {
+        return node.children[0] + node.children[1].accept(this) + node.children[2].accept(this);
+        // +                     3                  ""
+      } else {
+        // epsilon
+        return "";
+      }
+      break;
+    case "Factor":
+      if (node.children[0] === "(") {
+        // (E)
+        return "(" + node.children[1].accept(this) + ")";
+      } else if (node.children[0] === "-") {
         return "-" + node.children[1].accept(this);
-      } else{
+      } else {
         return node.children[0];
       }
-    }
-    else if (node.name === "B") {
-      if(node.children.length > 0) {
-        return node.children[1].accept(this) + node.children[2].accept(this) + node.children[0];
+      break;
+  }
+}
+
+
+
+function RPNVisitor() {}
+
+RPNVisitor.prototype.visit = function (node) {
+  switch (node.name) {
+    case "Expression":
+      return node.children[0].accept(this) + " " + node.children[1].accept(this);
+      break;
+    case "Term":
+      return node.children[0].accept(this) + " " + node.children[1].accept(this);
+      break;
+    case "A": // + T A ---> TA+  3+2  3 2 +
+      if (node.children.length > 0) {
+        return node.children[1].accept(this) + " " + node.children[2].accept(this) + " " + node.children[0];
       } else {
         return "";
       }
-    }
+      break;
+    case "B":
+      if (node.children.length > 0) {
+        return node.children[1].accept(this) + " " + node.children[2].accept(this) + " " + node.children[0];
+      } else {
+        return "";
+      }
+      break;
+    case "Factor":
+      if (node.children[0] === "(") {
+        return node.children[1].accept(this);
+      } else if (node.children[0] === "-") {
+        return "-" + node.children[1].accept(this);
+      } else {
+        return node.children[0];
+      }
+      break;
   }
 }
 
-function InfixVisitorCalc() {
-  this.visit = function(node) {
-    switch(node.name) {
-      case "Expression":
-        // return node.children[0].accept(this) + node.children[1].accept(this);
-        var t = node.children[0].accept(this);
-        var a = node.children[1].accept(this);
-        console.log("t, a", t, a);
-        return t+a;
-        break;
-      case "Term":
-        var f = node.children[0].accept(this);
-        var b = node.children[1].accept(this);
-        console.log("f, b", f, b);
-        return f+b;
-        break;
-      case "A":
-        if(node.children.length > 0) {
-          var val = node.children[1].accept(this) + node.children[2].accept(this);
-          if(node.children[0] == "+") {
-            return val;
-          } else {
-            return 0 - val;
-          }
+function CalcVisitor() {
 
-        } else {
-          return 1;
-        }
-      case "Factor": // needs to be done
-      case "B":
-        if(node.children.length > 0) {
-          var val = node.children[1].accept(this) * node.children[2].accept(this);
-          if(node.children[0] == "*") {
-            return val;
-          } else {
-            return 1/val;
-          }
+}
 
-        } else {
-          return 1;
+CalcVisitor.prototype.visit = function (node) {
+  var myselfTheVisitor = this;
+  switch (node.name) {
+    case "Expression":
+      // E -> TA
+      var t = node.children[0].accept(this);
+      var a = node.children[1].accept(this);
+      return t + a;
+      break;
+    case "Term":
+      var f = node.children[0].accept(this);
+      var b = node.children[1].accept(this);
+      return f * b;
+      break;
+    case "A":
+      // A -> + T A
+      if (node.children.length > 0) {
+        var val = node.children[1].accept(this) + node.children[2].accept(this);
+        if (node.children[0] === "+") {
+          return val;
+        } else if (node.children[0] === "-") {
+          return -1 * val;
         }
-        break;
-      default:
-        break;
-    }
+      } else {
+        // epsilon
+        return 0;
+      }
+      break;
+    case "B":
+      // A -> + T A
+      if (node.children.length > 0) {
+        var val = node.children[1].accept(this) * node.children[2].accept(this);
+        if (node.children[0] === "*") {
+          return val;
+        } else if (node.children[0] === "/") {
+          return 1 / val;
+        }
+      } else {
+        // epsilon
+        return 1;
+      }
+      break;
+      break;
+    case "Factor":
+      if (node.children[0] === "(") {
+        return node.children[1].accept(this); // expressionv alue
+      } else if (node.children[0] === "-") {
+        return -1 * node.children[1].accept(this);
+      } else {
+        return Number(node.children[0]);
+      }
+
+      break;
   }
 }
 
-var calc = new Calculator("3+4*5");
-var tree = calc.parseExpression()
-var printOriginalVisitor = new PrintOriginalVisitor()
-console.log(tree.accept(printOriginalVisitor));
+
+
+var calc = new Calculator("1+2+(3*4)");
+var expressionNode = calc.parseExpression();
+
+var printVisitor = new PrintOriginalVisitor();
+var outputPrintVisitor = expressionNode.accept(printVisitor);
+console.log(outputPrintVisitor);
+
+var rpnVisitor = new RPNVisitor();
+var outputRPNVisitor = expressionNode.accept(rpnVisitor);
+console.log("rpn" + outputRPNVisitor);
