@@ -53,7 +53,7 @@ Calculator.prototype.parseExpression = function () {
   let a = this.parseA();
 
   return new TreeNode('Expression', term, a);
-}
+};
 
 Calculator.prototype.parseA = function () {
   let nextToken = this.peek();
@@ -67,7 +67,7 @@ Calculator.prototype.parseA = function () {
   } else {
     return new TreeNode('A');
   }
-}
+};
 
 Calculator.prototype.parseB = function () {
   let nextToken = this.peek();
@@ -81,14 +81,14 @@ Calculator.prototype.parseB = function () {
   } else {
     return new TreeNode('B');
   }
-}
+};
 
 Calculator.prototype.parseTerm = function () {
   let factor = this.parseFactor();
   let b = this.parseB();
 
   return new TreeNode('Term', factor, b);
-}
+};
 
 Calculator.prototype.parseFactor = function () {
   let nextToken = this.peek();
@@ -103,26 +103,39 @@ Calculator.prototype.parseFactor = function () {
     return new TreeNode('Factor', '-', this.parseFactor);
   } else if (nextToken && nextToken.name === 'NUMBER') {
     this.get();
-    return new TreeNode(nextToken.value);
+    return new TreeNode(nextToken); //???
   }
-}
-
-var calculator = new Calculator("(3)");
-
-// make a fake version of parseExpression
-var fakeExpressionTreeNode = new TreeNode("Expression", "3");
-calculator.parseExpression = function() {
-  this.get(); // remove the 3 when parseFactor runs
-  return fakeExpressionTreeNode;
-}
-
-var output = calculator.parseFactor();
-// check that
-// output.name == "Factor"
-// output.children = ["(", fakeExpressionTreeNode, ")"];
-console.log(output);
+};
 
 function TreeNode(name, ...children) {
   this.name = name;
   this.children = children;
 }
+
+TreeNode.prototype.accept = function(visitor) {
+  return visitor.visit(this);
+};
+
+function PrintOriginalVisitor() {
+  this.visit = function(node) {
+    switch(node.name) {
+      case "Expression":
+        break;
+      case "Term":
+        break;
+      case "Factor":
+        break;
+      case "A":
+        break;
+      case "B":
+        break;
+      case "NUMBER":
+        break;
+    }
+  }
+}
+
+var calc = new Calculator("3+4*5");
+var tree = calc.parseExpression()
+var printOriginalVisitor = new PrintOriginalVisitor()
+console.log(tree.accept(printOriginalVisitor));
